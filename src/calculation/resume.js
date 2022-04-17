@@ -1,11 +1,11 @@
 const fse = require('fs-extra')
 const moment = require('moment')
-const minhaCarteira = require('../config/carteiras-fundos/minhaCarteira')
+const carteira = require('../config/carteiras-fundos/carteira')
 
 function main() {
   try {
     console.log('processando fundos...')
-    const cnpjs = new Set(minhaCarteira.map(fundo => fundo.cnpj).filter(c => c))
+    const cnpjs = new Set(carteira.map(fundo => fundo.cnpj).filter(c => c))
     let quant = 0
     cnpjs.forEach(cnpj => {
       ++quant % 10 === 0 && console.log(quant)
@@ -23,45 +23,74 @@ function processaFundo(cnpj) {
 
   const mensal = processaPeriodo({ historico, groupBy: dia => dia.substr(0, 6) })
   const anual = processaPeriodo({ historico, groupBy: dia => dia.substr(0, 4) })
+  const dozeMeses = processaPeriodo({
+    historico,
+    groupBy: dia => moment().diff(dia, 'days') < 367 ? '12meses' : null
+  })
 
   const filename = `data/fundos/indicadores/${cnpj}.json`
   fse.outputJsonSync(filename, {
+    dozeMeses,
     anual,
     mensal
   }, { spaces: 2 })
 }
 
 function processaPeriodo({ historico, groupBy }) {
-  const agrupamento = {}
-  let diaAnterior
-  for (const dia in historico) {
-    const periodo = groupBy(dia)
-    const quota = historico[dia].quota
-    const quotaAnterior = historico[diaAnterior || dia].quota
-    const rentabilidade = 100 * quota / quotaAnterior - 100
-    agrupamento[periodo] = agrupamento[periodo] || { quotas: [], rentabilidades: [] }
-    agrupamento[periodo].quotas.push(quota)
-    agrupamento[periodo].rentabilidades.push(rentabilidade)
-    agrupamento[periodo].quota = quota
-    agrupamento[periodo].quotaComparacao = agrupamento[periodo].quotaComparacao || quotaAnterior
-    diaAnterior = dia
-  }
-
-  const resumoPeriodo = {}
-  for (const periodo in agrupamento) {
-    const { quota, quotaComparacao, rentabilidades } = agrupamento[periodo]
-    const media = rentabilidades.reduce((acc, cur) => acc + cur, 0) / rentabilidades.length
-    const varianca = rentabilidades.reduce((acc, cur) => acc + (cur - media) ** 2, 0)
-    const desvioPadrao = Math.sqrt(varianca / rentabilidades.length)
-    resumoPeriodo[periodo] = {
-      rendimento: 100 * quota / quotaComparacao - 100,
-      quotaComparacao,
-      quota,
-      rendimentoDiario: { media, desvioPadrao, amostras: rentabilidades.length }
+  const agrupamento = []
+  let histAnterior, agrup
+  for (const hist of historico) {
+    const periodo = groupBy(hist.dia)
+    if (!periodo) {
+      continue
     }
+    const quotaAnterior = histAnterior?.quota || hist.quota
+    const rentabilidade = 100 * hist.quota / quotaAnterior - 100
+    if (periodo !== agrup?.resumo.periodo) {
+      agrup = {
+        resumo: {
+          periodo
+        },
+        dadosParaComparacao: {
+          dia: histAnterior?.dia || hist.dia,
+          quota: quotaAnterior,
+          patrimonio: histAnterior?.patrimonio || hist.patrimonio
+        },
+        rentabilidades: []
+      }
+      agrupamento.push(agrup)
+    }
+    agrup.rentabilidades.push(rentabilidade)
+    agrup.resumo.patrimonio = hist.patrimonio
+    agrup.resumo.quota = hist.quota
+    agrup.resumo.capitacao = (agrup.resumo.capitacao || 0) + hist.capitacao
+    agrup.resumo.resgate = (agrup.resumo.resgate || 0) + hist.resgate
+    agrup.resumo.diaFinal = hist.dia
+    histAnterior = hist
   }
 
-  return resumoPeriodo
+  const resumoPeriodo = []
+  for (const agrup of agrupamento) {
+    const { resumo, rentabilidades, dadosParaComparacao } = agrup
+    const { quota, patrimonio } = resumo
+    const media = rentabilidades.reduce((acc, cur) => acc + cur, 0) / rentabilidades.length
+    const variancia = rentabilidades.reduce((acc, cur) => acc + (cur - media) ** 2, 0)
+    const desvioPadrao = Math.sqrt(variancia / rentabilidades.length)
+    resumoPeriodo.push({
+      ...resumo,
+      dadosParaComparacao,
+      rendimento: 100 * quota / dadosParaComparacao.quota - 100,
+      variacaoPatrimonio: 100 * patrimonio / dadosParaComparacao.patrimonio - 100,
+      variacaoQuotas: 100 * (patrimonio / quota) / (dadosParaComparacao.patrimonio / dadosParaComparacao.quota) - 100,
+      rendimentoDiario: {
+        media,
+        desvioPadrao,
+        amostras: rentabilidades.length
+      }
+    })
+  }
+
+  return resumoPeriodo.sort((a, b) => -a.periodo.localeCompare(b.periodo))
 }
 
 main()

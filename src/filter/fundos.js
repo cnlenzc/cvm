@@ -1,12 +1,12 @@
 const fs = require('fs')
 const fse = require('fs-extra')
 const moment = require('moment')
-const minhaCarteira = require('../config/carteiras-fundos/minhaCarteira')
+const carteira = require('../config/carteiras-fundos/carteira')
 
 async function main() {
   try {
     console.log('reading files...')
-    const cnpjs = new Set(minhaCarteira.map(fundo => fundo.cnpj).filter(c => c))
+    const cnpjs = new Set(carteira.map(fundo => fundo.cnpj).filter(c => c))
     const fundos = {}
     for (let month = moment('2021-01-01'); month < moment(); month = month.add(1, 'M')) {
       console.log(` ${month.format('YYYYMM')}.csv`)
@@ -27,11 +27,9 @@ async function main() {
         ] = line.split(';')
         const cnpj = (CNPJ_FUNDO || '').replace(/\D/g, '')
         if (cnpjs.has(cnpj)) {
-          const data = DT_COMPTC.replace(/\D/g, '')
-          if (!fundos[cnpj]) {
-            fundos[cnpj] = {}
-          }
-          fundos[cnpj][data] = ({
+          fundos[cnpj] = fundos[cnpj] || []
+          fundos[cnpj].push({
+            dia: DT_COMPTC.replace(/\D/g, ''),
             quota: Number(VL_QUOTA),
             total: Number(VL_TOTAL),
             patrimonio: Number(VL_PATRIM_LIQ),
