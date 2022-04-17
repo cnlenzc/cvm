@@ -21,8 +21,8 @@ function processaFundo(cnpj) {
   const historicoFilename = `data/fundos/historico/${cnpj}.json`
   const historico = fse.readJsonSync(historicoFilename, 'utf-8')
 
-  const mensal = processaMensal(historico)
-  const anual = processaAnual(historico)
+  const mensal = processaPeriodo({ historico, groupBy: dia => dia.substr(0, 6) })
+  const anual = processaPeriodo({ historico, groupBy: dia => dia.substr(0, 4) })
 
   const filename = `data/fundos/indicadores/${cnpj}.json`
   fse.outputJsonSync(filename, {
@@ -31,29 +31,29 @@ function processaFundo(cnpj) {
   }, { spaces: 2 })
 }
 
-function processaMensal(historico) {
+function processaPeriodo({ historico, groupBy }) {
   const agrupamento = {}
   let diaAnterior
   for (const dia in historico) {
-    const mes = dia.substr(0, 6)
+    const periodo = groupBy(dia)
     const quota = historico[dia].quota
     const quotaAnterior = historico[diaAnterior || dia].quota
     const rentabilidade = 100 * quota / quotaAnterior - 100
-    agrupamento[mes] = agrupamento[mes] || { quotas: [], rentabilidades: [] }
-    agrupamento[mes].quotas.push(quota)
-    agrupamento[mes].rentabilidades.push(rentabilidade)
-    agrupamento[mes].quota = quota
-    agrupamento[mes].quotaComparacao = agrupamento[mes].quotaComparacao || quotaAnterior
+    agrupamento[periodo] = agrupamento[periodo] || { quotas: [], rentabilidades: [] }
+    agrupamento[periodo].quotas.push(quota)
+    agrupamento[periodo].rentabilidades.push(rentabilidade)
+    agrupamento[periodo].quota = quota
+    agrupamento[periodo].quotaComparacao = agrupamento[periodo].quotaComparacao || quotaAnterior
     diaAnterior = dia
   }
 
-  const resumoMensal = {}
-  for (const mes in agrupamento) {
-    const { quota, quotaComparacao, rentabilidades } = agrupamento[mes]
+  const resumoPeriodo = {}
+  for (const periodo in agrupamento) {
+    const { quota, quotaComparacao, rentabilidades } = agrupamento[periodo]
     const media = rentabilidades.reduce((acc, cur) => acc + cur, 0) / rentabilidades.length
     const varianca = rentabilidades.reduce((acc, cur) => acc + (cur - media) ** 2, 0)
     const desvioPadrao = Math.sqrt(varianca / rentabilidades.length)
-    resumoMensal[mes] = {
+    resumoPeriodo[periodo] = {
       rendimento: 100 * quota / quotaComparacao - 100,
       quotaComparacao,
       quota,
@@ -61,40 +61,7 @@ function processaMensal(historico) {
     }
   }
 
-  return resumoMensal
-}
-
-function processaAnual(historico) {
-  const agrupamento = {}
-  let diaAnterior
-  for (const dia in historico) {
-    const ano = dia.substr(0, 4)
-    const quota = historico[dia].quota
-    const quotaAnterior = historico[diaAnterior || dia].quota
-    const rentabilidade = 100 * quota / quotaAnterior - 100
-    agrupamento[ano] = agrupamento[ano] || { quotas: [], rentabilidades: [] }
-    agrupamento[ano].quotas.push(quota)
-    agrupamento[ano].rentabilidades.push(rentabilidade)
-    agrupamento[ano].quota = quota
-    agrupamento[ano].quotaComparacao = agrupamento[ano].quotaComparacao || quotaAnterior
-    diaAnterior = dia
-  }
-
-  const resumoAnual = {}
-  for (const mes in agrupamento) {
-    const { quota, quotaComparacao, rentabilidades } = agrupamento[mes]
-    const media = rentabilidades.reduce((acc, cur) => acc + cur, 0) / rentabilidades.length
-    const varianca = rentabilidades.reduce((acc, cur) => acc + (cur - media) ** 2, 0)
-    const desvioPadrao = Math.sqrt(varianca / rentabilidades.length)
-    resumoAnual[mes] = {
-      rendimento: 100 * quota / quotaComparacao - 100,
-      quotaComparacao,
-      quota,
-      rendimentoDiario: { media, desvioPadrao, amostras: rentabilidades.length }
-    }
-  }
-
-  return resumoAnual
+  return resumoPeriodo
 }
 
 main()
