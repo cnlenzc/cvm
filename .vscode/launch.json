@@ -1,0 +1,29 @@
+{
+  // Use o IntelliSense para saber mais sobre os atributos possíveis.
+  // Focalizar para exibir as descrições dos atributos existentes.
+  // Para obter mais informações, acesse: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "pwa-node",
+      "request": "launch",
+      "name": "dowloads informes-diarios",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/src/downloads/informes-diarios.js"
+    },
+    {
+      "type": "pwa-node",
+      "request": "launch",
+      "name": "filter funds",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/src/filter/fundos.js"
+    },
+    {
+      "type": "pwa-node",
+      "request": "launch",
+      "name": "resume funds",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/src/calculation/resume.js"
+    }
+  ]
+}
