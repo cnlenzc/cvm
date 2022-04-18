@@ -24,6 +24,13 @@
       "name": "resume funds",
       "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}/src/calculation/resume.js"
+    },
+    {
+      "type": "pwa-node",
+      "request": "launch",
+      "name": "compara fundos",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/src/reports/comparacaoFundos.js"
     }
   ]
 }
