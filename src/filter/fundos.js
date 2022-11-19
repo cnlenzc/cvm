@@ -8,7 +8,7 @@ async function main() {
     console.log('reading files...')
     const cnpjs = new Set(carteira.map(fundo => fundo.cnpj).filter(c => c))
     const fundos = {}
-    for (let month = moment('2021-01-01'); month < moment(); month = month.add(1, 'M')) {
+    for (let month = moment('2017-01-01'); month < moment(); month = month.add(1, 'M')) {
       console.log(` ${month.format('YYYYMM')}.csv`)
       const filename = `data/cvm/inf_diario_fi_${month.format('YYYYMM')}.csv`
       fse.ensureFileSync(filename)
